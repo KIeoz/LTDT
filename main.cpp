@@ -25,6 +25,7 @@ static Texture2D dummyFront;
 enum GameState { MENU, BETTING, DEALING, REVEALING, SHOW_RESULT, END_GAME };
 GameState gameState = MENU;
 
+
 class Card {
 public:
     string suit;
@@ -35,32 +36,51 @@ public:
     bool revealed;
     float flipProgress;
 
-    Card(string s, string r, Texture2D tex, Vector2 pos)
+    Card(string s, string r, Texture2D tex, Vector2 centerPos)
         : suit(move(s)), rank(move(r)), texture(tex), revealed(false), flipProgress(0.0f)
     {
         static const string ranks[] = { "A","2","3","4","5","6","7","8","9","10","J","Q","K" };
         int col = 0, row = 0;
+
+        // Mapping rank to column
         for (int i = 0; i < 13; i++) {
             if (ranks[i] == rank) {
-                if (suit == "Co") { row = 0; col = i; }
-                else if (suit == "Ro") { row = 0; col = i + 13; }
-                else if (suit == "Bich") { row = 1; col = i; }
-                else if (suit == "Tep") { row = 1; col = i + 13; }
+                col = i;
                 break;
             }
         }
-        float w = (float)tex.width / 26.0f;
-        float h = (float)tex.height / 2.0f;
-        srcRec = { col * w, row * h, w, h };
-        destRec = { pos.x, pos.y, CARD_WIDTH, CARD_HEIGHT };
+
+        // Mapping suit to row/offset
+        if (suit == "Co") { row = 0; col += 0; }       // ♥ left
+        else if (suit == "Ro") { row = 0; col += 13; } // ♦ right
+        else if (suit == "Bich") { row = 1; col += 0; } // ♠ left
+        else if (suit == "Tep") { row = 1; col += 13; } // ♣ right
+
+        // Cut from 26 cols × 2 rows
+        float cardW = (float)tex.width / 26.0f;
+        float cardH = (float)tex.height / 2.0f;
+        srcRec = { col * cardW, row * cardH, cardW, cardH };
+
+        // Draw scale 
+        float scale = 1.5f;
+        float drawW = CARD_WIDTH * scale;
+        float drawH = cardH / cardW * drawW;
+
+        // Use center position, draw from center
+        destRec = { centerPos.x, centerPos.y, drawW, drawH };
     }
 
     void Draw(Texture2D backTexture) {
         if (revealed || flipProgress > 0.5f) {
-            DrawTexturePro(texture, srcRec, destRec, { destRec.width / 2, destRec.height / 2 }, 0.0f, WHITE);
+            DrawTexturePro(texture, srcRec, destRec,
+                { destRec.width / 2, destRec.height / 2 },
+                0.0f, WHITE);
         }
         else {
-            DrawTexturePro(backTexture, { 0,0,(float)backTexture.width,(float)backTexture.height }, destRec, { destRec.width / 2, destRec.height / 2 }, 0.0f, WHITE);
+            DrawTexturePro(backTexture,
+                { 0, 0, (float)backTexture.width, (float)backTexture.height },
+                destRec, { destRec.width / 2, destRec.height / 2 },
+                0.0f, WHITE);
         }
     }
 
@@ -70,6 +90,7 @@ public:
         return stoi(rank);
     }
 };
+
 
 class Player {
 public:
@@ -168,7 +189,7 @@ void StartGame(const string& playerName, int numBots) {
 
 void DrawBetting() {
     ClearBackground(DARKGREEN);
-    DrawText("Adjust your bet with UP/DOWN, ENTER to confirm", SCREEN_WIDTH / 2 - 220, 50, 20, GOLD);
+    DrawText("Chinh so tien dat cuoc bang cach an nut len xuong", SCREEN_WIDTH / 2 - 220, 50, 20, GOLD);
 
     if (IsKeyPressed(KEY_UP)) playerBet += 10;
     if (IsKeyPressed(KEY_DOWN)) playerBet = max(10, playerBet - 10);
@@ -245,7 +266,7 @@ void DrawResult() {
 }
 //
 int main() {
-    const int W = 800, H = 450;
+    const int W = 800, H = 600;
     InitWindow(W, H, "Bai 3 Cay - Loading");
     InitAudioDevice();
     SetExitKey(KEY_NULL);
@@ -290,8 +311,8 @@ int main() {
 
     Rectangle sourceRec = { 0.0f,0.0f, (float)buttonTex.width, frameHeight };
     Rectangle btnRec = { (float)W / 2 - buttonTex.width / 2, (float)H - frameHeight - padBot, (float)buttonTex.width, frameHeight };
-    Rectangle nameRec = { (float)W / 2 - 225.0f / 2, 180.0f, 225.0f, 50.0f };
-    Rectangle botsRec = { (float)W / 2 - 225.0f / 2, 260.0f, 225.0f, 50.0f };
+    Rectangle nameRec = { (float)W / 2 - 225.0f / 2, 300.0f, 225.0f, 50.0f };
+    Rectangle botsRec = { (float)W / 2 - 225.0f / 2, 400.0f, 225.0f, 50.0f };
 
     char nameBuf[MAX_NAME_CHARS + 1] = "\0";
     char botsBuf[MAX_NUM_BOTS_CHARS + 1] = "\0";
@@ -365,15 +386,15 @@ int main() {
 
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        DrawTexture(logoTex, 190, -150, WHITE);
+        DrawTexture(logoTex, 190, -100, WHITE);
         DrawRectangleLinesEx(nameRec, 2, showNameError ? RED : DARKGRAY);
         DrawRectangleLinesEx(botsRec, 2, showBotsError ? RED : DARKGRAY);
         DrawText("Player Name:", (int)(nameRec.x - 145), (int)(nameRec.y + 15), 20, DARKGRAY);
         DrawText("Number of Bots (0-13):", (int)(botsRec.x - 240), (int)(botsRec.y + 15), 20, DARKGRAY);
         DrawText(nameBuf, (int)(nameRec.x + 7), (int)(nameRec.y + 10), 40, MAROON);
         DrawText(botsBuf, (int)(botsRec.x + 7), (int)(botsRec.y + 10), 40, MAROON);
-        if (showNameError) DrawText("Please enter name!", 520, 200, 20, RED);
-        if (showBotsError) DrawText("Please enter number bots!", 520, 270, 20, RED);
+        if (showNameError) DrawText("Please enter name!", 520, 320, 20, RED);
+        if (showBotsError) DrawText("Please enter number bots!", 520, 430, 20, RED);
         DrawTextureRec(buttonTex, sourceRec, Vector2{ btnRec.x, btnRec.y }, WHITE);
         if (fadeOut) {
             DrawRectangleRec(Rectangle{ 0.0f, 0.0f, (float)W, (float)H }, Fade(WHITE, fadeA));
